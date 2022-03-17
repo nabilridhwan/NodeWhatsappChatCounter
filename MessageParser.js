@@ -2,9 +2,8 @@ const fs = require("fs");
 
 class MessageParser {
 
-    constructor(pathname, groupchat = false) {
+    constructor(pathname) {
         this.pathname = pathname;
-        this.groupchat = groupchat;
         this.messages = [];
     }
 
@@ -19,18 +18,16 @@ class MessageParser {
         let lines = contents.split("\n");
 
         let messages = [];
-        let i = 0;
 
-        // This returns the last line that has the date and author at the front
-        let lastNonNullLine = null;
+        // This returns the last line index that has the date and author at the front
+        let lastLineIndex;
 
         // This is the counter for the number of lines that does not have the date and author at the front 
         let count = 0;
 
-        if (this.groupchat) i = 1;
+        for (let i = 1; i < lines.length; i++) {
 
-        for (; i < lines.length; i++) {
-
+            // This represent the current line
             let line = lines[i];
 
             // Replace every RTL character and carriage return with a space and trim it
@@ -42,19 +39,21 @@ class MessageParser {
                 count++;
 
                 // The non null last line is current read line minus the count
-                lastNonNullLine = lines[i - count];
+                lastLineIndex = i - count;
+                lines[lastLineIndex] += ` ${line}`;
 
-                // Append the date and author to the beginning of the line
-                let dateAndAuthor = lastNonNullLine.match(/\[\d+\/\d+\/\d+, \d+:\d+:\d+ [APM]+\] [^:]+/g)[0]
-                lines[i] = `${dateAndAuthor}: ${line}`;
+                lines[i] = "";
             } else {
 
                 // If the line starts with [ (meaning it has the date and author at the front)
                 // Set the count to 0 and lastnonnullline to null
                 count = 0;
-                lastNonNullLine = null;
+                lastLineIndex = undefined;
             }
+
         }
+
+        lines = lines.filter(line => line != "");
 
         // Parsing start
         for (let i = 1; i < lines.length; i++) {
@@ -96,6 +95,10 @@ class MessageParser {
         return fs.writeFileSync(this.pathname.replace("txt", "json"), JSON.stringify(this.messages));
     }
 
+    getMessages(){
+        return this.messages;
+    }
+
     getMessagesMatch(key, query) {
         if (key == "message" || key == "author") {
             return this.messages.filter(message => {
@@ -104,7 +107,6 @@ class MessageParser {
         } else {
             throw new Error("Key must be either message or author");
         }
-
     }
 }
 
