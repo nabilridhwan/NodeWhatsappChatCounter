@@ -1,0 +1,6 @@
+*tsc*
+lib/
+*.json
+*.txt
+*.ts
+node_modules/
