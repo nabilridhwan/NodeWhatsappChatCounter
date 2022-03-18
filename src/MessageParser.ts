@@ -1,24 +1,20 @@
-const fs = require("fs");
+import { MessageQueryType } from "./MessageUtils"
+import Message from "./Message";
+import MessageIO from "./MessageIO";
+import { PathLike } from "fs";
 
-class MessageParser {
 
-    constructor(pathname) {
+export default class MessageParser {
+    pathname: PathLike;
+    messages: Array<Message> = [];
+
+    constructor(pathname: PathLike) {
         this.pathname = pathname;
-        this.messages = [];
     }
 
-    getAuthors() {
-        let authors = [];
-        authors = this.messages.map(message => message.author)
-        return [...new Set(authors)];
-    }
-
-    async parse() {
-        const contents = fs.readFileSync(this.pathname, "utf8");
-        let lines = contents.split("\n");
-
-        let messages = [];
-
+    // Setup the messages by making multi-line messages into one line
+    private setupMessages(splittedLines: Array<string>): Array<string> {
+        let lines = splittedLines;
         // This returns the last line index that has the date and author at the front
         let lastLineIndex;
 
@@ -54,6 +50,13 @@ class MessageParser {
         }
 
         lines = lines.filter(line => line != "");
+        return lines;
+    }
+
+    async parseMessages(): Promise<Array<Message>> {
+        let splittedLines = await MessageIO.readMessagesFromFile(this.pathname);
+        let lines = this.setupMessages(splittedLines);
+        let finalMessages: Array<Message> = [];
 
         // Parsing start
         for (let i = 1; i < lines.length; i++) {
@@ -65,12 +68,12 @@ class MessageParser {
                 let [_, day, month, year, hour, mins, sec, ampm, author, message] = match;
 
                 // Parse the ints
-                day = parseInt(day);
-                month = parseInt(month);
-                year = parseInt(year) + 2000;
-                hour = parseInt(hour);
-                mins = parseInt(mins);
-                sec = parseInt(sec);
+                let dayInt = parseInt(day);
+                let monthInt = parseInt(month);
+                let yearInt = parseInt(year) + 2000;
+                let hourInt = parseInt(hour);
+                let minsInt = parseInt(mins);
+                let secInt = parseInt(sec);
 
                 // If it is afternoon, add 12 hours to the hour (to convert to 24 hour time)
                 if (ampm == "pm") {
@@ -79,35 +82,16 @@ class MessageParser {
 
                 // Remove empty messages and author that is "you" (used for groupchats)
                 if (author.toLowerCase() != "you" && message != "" && !message.match(/^\w+ omitted/gm)) {
-                    messages.push({
-                        date: new Date(year, month - 1, day, hour, mins, sec),
-                        author: author,
-                        message: message
-                    })
+                    const date = new Date(yearInt, monthInt - 1, dayInt, hourInt, minsInt, secInt);
+                    const nm = new Message(date, author, message);
+                    finalMessages.push(nm);
                 }
             }
         }
 
-        this.messages = messages;
-    }
-
-    async writeToFile() {
-        return fs.writeFileSync(this.pathname.replace("txt", "json"), JSON.stringify(this.messages));
-    }
-
-    getMessages(){
+        this.messages = finalMessages;
         return this.messages;
     }
 
-    getMessagesMatch(key, query) {
-        if (key == "message" || key == "author") {
-            return this.messages.filter(message => {
-                return message[key].toLowerCase().includes(query.toLowerCase())
-            });
-        } else {
-            throw new Error("Key must be either message or author");
-        }
-    }
-}
 
-module.exports = MessageParser;
+}

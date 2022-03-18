@@ -1,7 +1,7 @@
 *tsc*
 lib/
-*.json
+js/
 *.txt
-*.ts
 node_modules/
+chats/
 *.test.js
